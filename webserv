@@ -1,0 +1,29 @@
+#!/usr/bin/env ruby
+require 'webrick'
+include WEBrick
+
+if ARGV[0].nil?
+  puts "usage: webserv [directory]"
+  exit
+end
+
+if not File.exists?(ARGV[0])
+  puts "webserv: No such directory #{ARGV[0]}"
+  exit
+end
+
+def start_webrick(config = {})
+  config.update(:Port => 8080)
+  server = HTTPServer.new(config)
+  yield server if block_given?
+  [ 'INT', 'TERM' ].each {|signal| trap(signal) { server.shutdown }}
+  server.start
+end
+
+start_webrick(
+              :DocumentRoot => ARGV[0],
+              :DocumentRootOptions => {
+                :FancyIndexing => true,
+                :NondisclosureName => ".*",
+              })
+
