@@ -1,0 +1,67 @@
+#!/usr/bin/env ruby
+# Usage: ipt_forward tcp 172.20.0.2:22 172.20.0.10:22
+#        ipt_forward udp 172.20.0.2:53 172.20.0.10:53
+#        ipt_forward both 172.20.0.2:53 172.20.0.10:53
+#        ipt_forward all 172.20.0.2 172.20.0.10
+
+if ARGV.length != 3
+  puts "Usage: ipt_forward [tcp|udp|both|all] [src|src:port] [src|dst:port]"
+  exit
+end
+
+proto = ARGV[0].dup
+src = ARGV[1].dup
+dst = ARGV[2].dup
+base_command = "iptables -t nat -A OUTPUT "
+iptables_commands = Array.new
+
+proto.downcase!
+
+unless proto =~ /^(tcp|udp|both|all)$/
+  puts "protocol needs to be tcp, udp, both, or all, not #{proto}"
+  exit
+end
+
+if proto =~ /^(tcp|udp)$/
+  iptables_commands[0] = String.new
+  iptables_commands[0] << base_command
+  iptables_commands[0] << "-p #{proto} "
+elsif proto =~ /^both$/
+  iptables_commands[0] = String.new
+  iptables_commands[0] << base_command
+  iptables_commands[0] << "-p tcp "
+
+  iptables_commands[1] = String.new
+  iptables_commands[1] << base_command
+  iptables_commands[1] << "-p udp "
+elsif proto =~ /^all$/
+  iptables_commands[0] = String.new
+  iptables_commands[0] << base_command
+else
+  puts "Bug in protocol parsing.\n"
+  exit
+end
+
+if src !~ /:/ and proto != "all" or dst !~ /:/ and proto != "all"
+  puts "Can't specify protocol '#{proto}' without a port"
+  exit
+end
+
+if src =~ /:/ and proto == "all" or dst =~ /:/ and proto == "all"
+  puts "Can't specify a port and protocol 'all'"
+  exit
+end
+
+if proto == "all"
+  # -d 172.20.0.2 --dport 22 -j DNAT --to-destination 172.20.0.10:22
+  iptables_commands[0] << "-d #{src} -j DNAT --to-destination #{dst}"
+elsif proto =~ /^(tcp|udp)$/
+  ip, port = src.split(/:/)
+  iptables_commands[0] << "-d #{ip} --dport #{port} -j DNAT --to-destination #{dst}"
+elsif proto =~ /^both$/
+  ip, port = src.split(/:/)
+  iptables_commands[0] << "-d #{ip} --dport #{port} -j DNAT --to-destination #{dst}"
+  iptables_commands[1] << "-d #{ip} --dport #{port} -j DNAT --to-destination #{dst}"
+end
+
+iptables_commands.each {|c| system c}
