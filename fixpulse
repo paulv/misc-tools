@@ -1,0 +1,4 @@
+#!/bin/sh
+chmod 770 /tmp/pulse-paulv
+chgrp paulv-pulse /tmp/pulse-paulv
+chgrp paulv-pulse /tmp/pulse-paulv/native

@@ -1,0 +1,5 @@
+#!/bin/sh
+echo "none" | sudo tee /sys/devices/pci0000:00/0000:00:1c.1/0000:03:00.0/leds/iwl-phy0:RX/trigger
+echo "none" | sudo tee /sys/devices/pci0000:00/0000:00:1c.1/0000:03:00.0/leds/iwl-phy0:TX/trigger
+echo "none" | sudo tee /sys/devices/pci0000:00/0000:00:1c.1/0000:03:00.0/leds/iwl-phy0:assoc/trigger
+echo "none" | sudo tee /sys/devices/pci0000:00/0000:00:1c.1/0000:03:00.0/leds/iwl-phy0:radio/trigger
