@@ -7,21 +7,79 @@ if ARGV[0].nil?
   exit
 end
 
-if not File.exists?(ARGV[0])
+if ARGV.length <= 1
+  $upload_enabled = false
+  $document_root = ARGV[0]
+elsif ARGV.length > 1 and ARGV[0] == "-u"
+  $upload_enabled = true
+  $document_root = ARGV[1]
+else
+  puts "usage: webserv [-u directory | directory]"
+  exit
+end
+
+if not File.exists? $document_root
   puts "webserv: No such directory #{ARGV[0]}"
   exit
+end
+
+class UploadFile < HTTPServlet::AbstractServlet
+    def do_POST(req, resp)
+      filedata = req.query["filename"]
+      filename = req.query["actual_filename"]
+
+      file_path = $document_root + "/" + filename
+
+      if File.exists? file_path
+        resp.body << "<h2>Error</h2>"
+        resp.body << "A file named #{filename} already exists in the directory '#{$document_root}'. Please choose a different filename and try again.\n"
+        raise HTTPStatus::OK
+        return
+      end
+
+      f = File.open(file_path, "wb")
+      f.syswrite filedata
+      f.close
+
+      resp.body << "<h2>Success!</h2><br>File '#{file_path}' saved successfully."
+      raise HTTPStatus::OK
+    end
+
+    def do_GET(req, resp)
+      resp.body << "<script language=JavaScript>"
+      resp.body << "function extract(what) {\n"
+      resp.body << "if (what.indexOf('/') > -1) { \n"
+      resp.body << "answer = what.substring(what.lastIndexOf('/')+1,what.length);\n"
+      resp.body << "} else { \n"
+      resp.body << "answer = what.substring(what.lastIndexOf('\\\\')+1,what.length);\n"
+      resp.body << "}\n"
+      resp.body << "document.forms['myform']['actual_filename'].value = answer;"
+      resp.body << "document.myform.submit();"
+      resp.body << "}"
+      resp.body << "</script>\n\n"
+      resp.body << "<p><noscript><b>Warning:</b> Javascript is disabled!</noscript></p>\n\n"
+      resp.body << "<form name=myform action=\"/upload\" method=\"POST\" enctype=\"multipart/form-data\">"
+      resp.body << "File: <input type=\"file\" name=\"filename\">"
+      resp.body << "<input type=hidden name=actual_filename /> "
+      resp.body << "<input type=button value=Upload onClick=extract(document.forms['myform']['filename'].value)>"
+      resp.body << "</form>"
+
+      raise HTTPStatus::OK
+    end
+
 end
 
 def start_webrick(config = {})
   config.update(:Port => 8080)
   server = HTTPServer.new(config)
+  server.mount("/upload", UploadFile) if $upload_enabled
   yield server if block_given?
   [ 'INT', 'TERM' ].each {|signal| trap(signal) { server.shutdown }}
   server.start
 end
 
 start_webrick(
-              :DocumentRoot => ARGV[0],
+              :DocumentRoot => $document_root,
               :DocumentRootOptions => {
                 :FancyIndexing => true,
                 :NondisclosureName => ".*",
