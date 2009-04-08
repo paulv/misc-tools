@@ -30,6 +30,13 @@ class UploadFile < HTTPServlet::AbstractServlet
 
       file_path = $document_root + "/" + filename
 
+      if filename.include? "/"
+        resp.body << "<h2>Error</h2>"
+        resp.body << "Illegal character / in filename. Upload Failed."
+        raise HTTPStatus::OK
+        return
+      end
+
       if File.exists? file_path
         resp.body << "<h2>Error</h2>"
         resp.body << "A file named #{filename} already exists in the directory '#{$document_root}'. Please choose a different filename and try again.\n"
